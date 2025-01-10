@@ -1,4 +1,4 @@
-module example/data-access
+module example/go-mountains
 
 go 1.23.3
 

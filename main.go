@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-
 	"github.com/go-sql-driver/mysql"
 )
 
@@ -26,6 +25,7 @@ func main() {
 	cfg := mysql.Config{
 		User:   os.Getenv("DB_USER"),
 		Passwd: os.Getenv("DB_PWD"),
+
 		Net:    "tcp",
 		Addr:   strings.Join([]string{os.Getenv("DB_HOST"), "3306"}, ":"),
 		DBName: os.Getenv("DB_DATABASE"),
@@ -43,12 +43,30 @@ func main() {
 	}
 	fmt.Println("Connected!")
 
+	if rows, err := db.Query("SELECT * FROM mountain"); err != nil {
+		fmt.Println("feeding database table with mountains ")
+		if err := seedMountains(); err != nil {
+			fmt.Printf("feedData: %v\n", err)
+		} else {
+			fmt.Println("Database table feeded!")
+		}
+	} else {
+		fmt.Println("database has table and data")
+		rows.Close()
+	}
+
 	router := gin.Default()
 	router.GET("/mountains", getMountains)
 	router.POST("/mountains", addMountain)
 	router.GET("/mountains/:id", getMountainByID)
 	router.GET("/height/:h", getMountainsByHeight)
-	router.Run("localhost:8080")
+	router.GET("/health", getHealth)
+
+	httpAddr := "0.0.0.0:8080"
+	// if httpPort := os.Getenv("HTTP_PORT"); httpPort != "" {
+	// 	httpAddr = strings.Join([]string{"localhost", httpPort}, ":")
+	// }
+	router.Run(httpAddr)
 
 }
 
@@ -144,4 +162,42 @@ func addMountain(c *gin.Context) {
 	}
 	newMountain.ID = id
 	c.IndentedJSON(http.StatusCreated, newMountain)
+}
+
+func getHealth(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"Status": "OK"})
+}
+
+func seedMountains() (err error) {
+	newMountains := []Mountain{
+		{0, "Mt. Everest", 29032, "Sagarmatha || Qomolangma"},
+		{0, "Annapurna", 26545, ""},
+		{0, "Gasherbrum III", 26089, ""},
+		{0, "Gyachung Kang", 26089, ""},
+		{0, "Fishtail", 22943, "Machapuchare"},
+		{0, "Mt. McKinley", 20310, "Denali"},
+		{0, "Mt. Rainier", 14410, "Tahoma"},
+	}
+
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS mountain (" +
+		"id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY, " +
+		"name VARCHAR(128) NOT NULL, " +
+		"height INT NOT NULL," +
+		"local_name  VARCHAR(255))")
+	if err != nil {
+		// fmt.Printf("addMountain: %v\n", err)
+		return
+	}
+
+	for _, m := range newMountains {
+		_, err = db.Exec(
+			"INSERT INTO mountain (name, height, local_name) VALUES (?, ?, ?)",
+			m.Name, m.Height, m.LocalName,
+		)
+		if err != nil {
+			return
+		}
+	}
+	return nil
+
 }
