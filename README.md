@@ -6,3 +6,5 @@ export DB_USER=YuYingNan && \
    export DB_HOST=127.0.0.1 && \
    export DB_DATABASE=mountains
 ```
+
+`go run .`
